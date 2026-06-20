@@ -67,7 +67,14 @@ const MELODY = [
 window.addEventListener('resize', () => {
   const newWidth = window.innerWidth;
   const newHeight = window.innerHeight;
-  if (newWidth !== width || newHeight !== height) {
+  
+  // On mobile, address bar show/hide triggers resize.
+  // If width is unchanged, and height difference is small (e.g. < 120px), skip resizing
+  // to avoid canvas clearing, visual jumps, and unnecessary performance hits.
+  const widthChanged = newWidth !== width;
+  const heightChanged = Math.abs(newHeight - height) > 120;
+  
+  if (widthChanged || heightChanged) {
     width = canvas.width = newWidth;
     height = canvas.height = newHeight;
   }
@@ -674,10 +681,67 @@ class WishText {
     this.sparkles = [];
     this.dead = false;
 
-    // Cached Gradients (lazy initialized in draw to avoid needing ctx here)
-    this.bgGrad = null;
-    this.borderGrad = null;
-    this.textGrad = null;
+    // Pre-render badge onto offscreen canvas for high-performance rendering
+    this.preRender();
+  }
+
+  preRender() {
+    this.offscreenCanvas = document.createElement('canvas');
+    // Scale up for high-DPI screens
+    const scaleFactor = window.devicePixelRatio || 1;
+    this.offscreenCanvas.width = this.width * scaleFactor;
+    this.offscreenCanvas.height = this.height * scaleFactor;
+
+    const oCtx = this.offscreenCanvas.getContext('2d');
+    oCtx.scale(scaleFactor, scaleFactor);
+
+    const w = this.width;
+    const h = this.height;
+    const radius = 18;
+
+    // 1. Draw rounded rectangle path
+    drawRoundRect(oCtx, 1, 1, w - 2, h - 2, radius);
+
+    // 2. Glassmorphic dark background fill
+    const bgGrad = oCtx.createLinearGradient(0, 0, 0, h);
+    bgGrad.addColorStop(0, 'rgba(15, 12, 30, 0.72)');
+    bgGrad.addColorStop(1, 'rgba(8, 6, 18, 0.88)');
+    oCtx.fillStyle = bgGrad;
+    oCtx.fill();
+
+    // 3. Double-gradient border stroke
+    const borderGrad = oCtx.createLinearGradient(0, 0, w, h);
+    borderGrad.addColorStop(0, this.colorFrom);
+    borderGrad.addColorStop(0.3, 'rgba(255, 255, 255, 0.35)');
+    borderGrad.addColorStop(0.7, 'rgba(255, 255, 255, 0.15)');
+    borderGrad.addColorStop(1, this.colorTo);
+    oCtx.strokeStyle = borderGrad;
+    oCtx.lineWidth = 1.8;
+    oCtx.stroke();
+
+    // 4. Text (with glow outlines)
+    oCtx.textAlign    = 'center';
+    oCtx.textBaseline = 'middle';
+    oCtx.font = `500 ${this.fontSize}px 'Dancing Script', 'Outfit', 'Noto Sans', sans-serif`;
+
+    const textGrad = oCtx.createLinearGradient(w / 6, 0, w * 5 / 6, 0);
+    textGrad.addColorStop(0,   '#f8fafc');
+    textGrad.addColorStop(0.5, '#ffffff');
+    textGrad.addColorStop(1,   '#f1f5f9');
+
+    oCtx.strokeStyle = this.colorFrom;
+    oCtx.lineWidth = 4;
+    oCtx.lineJoin = 'round';
+    oCtx.miterLimit = 2;
+    oCtx.strokeText(this.text, w / 2, h / 2 - 5);
+
+    oCtx.fillStyle = textGrad;
+    oCtx.fillText(this.text, w / 2, h / 2 - 5);
+
+    // 5. Language sub-label
+    oCtx.font      = `600 ${this.labelFontSize}px 'Outfit', sans-serif`;
+    oCtx.fillStyle = this.colorTo;
+    oCtx.fillText(this.lang, w / 2, h / 2 + this.fontSize / 2 + 3);
   }
 
   update(allWishes) {
@@ -758,8 +822,10 @@ class WishText {
       this.vx = 0;
     }
 
-    // Spawn sparkles
-    if (Math.random() < 0.22 && this.alpha > 0.15 && !this.fadeOut) {
+    // Spawn sparkles (throttled on mobile)
+    const isMobile = width < 600;
+    const sparkleChance = isMobile ? 0.10 : 0.22;
+    if (Math.random() < sparkleChance && this.alpha > 0.15 && !this.fadeOut) {
       this.sparkles.push({
         x: (Math.random() - 0.5) * this.width * 0.8,
         y: (Math.random() - 0.5) * this.height * 0.8,
@@ -801,64 +867,14 @@ class WishText {
       drawStarSparkle(ctx, s.x, s.y, 4, s.size, s.size / 3.2, s.color, s.alpha, s.angle);
     }
 
-    // 2. Draw cute pill badge
-    const w = this.width;
-    const h = this.height;
-    const rx = -w / 2;
-    const ry = -h / 2;
-    const radius = 18;
-
-    drawRoundRect(ctx, rx, ry, w, h, radius);
-    
-    // Glassmorphic dark pastel background fill (cached)
-    if (!this.bgGrad) {
-      this.bgGrad = ctx.createLinearGradient(rx, ry, rx, ry + h);
-      this.bgGrad.addColorStop(0, 'rgba(15, 12, 30, 0.72)');
-      this.bgGrad.addColorStop(1, 'rgba(8, 6, 18, 0.88)');
-    }
-    ctx.fillStyle = this.bgGrad;
-    ctx.fill();
-
-    // Double-gradient glow border (cached)
-    if (!this.borderGrad) {
-      this.borderGrad = ctx.createLinearGradient(rx, ry, rx + w, ry + h);
-      this.borderGrad.addColorStop(0, this.colorFrom);
-      this.borderGrad.addColorStop(0.3, 'rgba(255, 255, 255, 0.35)');
-      this.borderGrad.addColorStop(0.7, 'rgba(255, 255, 255, 0.15)');
-      this.borderGrad.addColorStop(1, this.colorTo);
-    }
-    ctx.strokeStyle = this.borderGrad;
-    ctx.lineWidth = 1.8;
-    ctx.stroke();
-
-    // 3. Draw text and labels
-    ctx.textAlign    = 'center';
-    ctx.textBaseline = 'middle';
-
-    // Glow halo (crisp outlined text) + Light Text Gradient pass
-    ctx.font = `500 ${this.fontSize}px 'Dancing Script', 'Outfit', 'Noto Sans', sans-serif`;
-
-    if (!this.textGrad) {
-      this.textGrad = ctx.createLinearGradient(-w / 3, 0, w / 3, 0);
-      this.textGrad.addColorStop(0,   '#f8fafc'); // light pastel slate
-      this.textGrad.addColorStop(0.5, '#ffffff'); // bright clean white
-      this.textGrad.addColorStop(1,   '#f1f5f9'); // light slate
-    }
-
-    ctx.strokeStyle = this.colorFrom;
-    ctx.lineWidth = 4;
-    ctx.lineJoin = 'round';
-    ctx.miterLimit = 2;
-    ctx.strokeText(this.text, 0, -5);
-
-    ctx.fillStyle = this.textGrad;
-    ctx.fillText(this.text, 0, -5);
-
-    // Language sub-label (optimized: no shadow blur)
-    ctx.globalAlpha = this.alpha * 0.65;
-    ctx.font        = `600 ${this.labelFontSize}px 'Outfit', sans-serif`;
-    ctx.fillStyle   = this.colorTo;
-    ctx.fillText(this.lang, 0, this.fontSize / 2 + 3);
+    // 2. Draw cached offscreen canvas representing the pill badge
+    ctx.drawImage(
+      this.offscreenCanvas,
+      -this.width / 2,
+      -this.height / 2,
+      this.width,
+      this.height
+    );
 
     ctx.restore();
   }
@@ -998,10 +1014,11 @@ function explodeRocket(x, y, color) {
   const colors = ['#ffd700', '#ff4766', '#00f2fe', '#ff8fa3', '#8b5cf6', '#10b981', '#ff5722'];
   const finalColor = color || colors[Math.floor(Math.random() * colors.length)];
   const style = Math.random();
+  const isMobile = width < 600;
   
   if (style < 0.35) {
     // 1. Double Ring Shell Burst with Secondary Gold Crackles
-    const numRing = 48;
+    const numRing = isMobile ? 24 : 48;
     const baseSpeed = Math.random() * 3.5 + 3.8;
     for (let i = 0; i < numRing; i++) {
       const angle = (i / numRing) * Math.PI * 2;
@@ -1014,7 +1031,7 @@ function explodeRocket(x, y, color) {
       p1.fade = Math.random() * 0.012 + 0.009;
       p1.gravity = 0.05;
       p1.useTrail = true;
-      p1.childExplosion = (Math.random() < 0.7); // 70% chance to crackle split!
+      p1.childExplosion = isMobile ? (Math.random() < 0.3) : (Math.random() < 0.7); // 30% vs 70% chance to crackle split!
       particles.push(p1);
       
       // Inner ring (White sparks)
@@ -1028,7 +1045,7 @@ function explodeRocket(x, y, color) {
     }
   } else if (style < 0.68) {
     // 2. Shimmering Golden Willow (drooping golden flare trail)
-    const numWillow = 65;
+    const numWillow = isMobile ? 30 : 65;
     for (let i = 0; i < numWillow; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = Math.random() * 5.5 + 1.2;
@@ -1046,7 +1063,7 @@ function explodeRocket(x, y, color) {
     }
   } else {
     // 3. Twinkling Rainbow Chrysanthemum with Trail Flares
-    const numChrys = 80;
+    const numChrys = isMobile ? 35 : 80;
     const colorsList = [finalColor, '#ffffff', '#ffd700', '#00f2fe', '#ff4766'];
     for (let i = 0; i < numChrys; i++) {
       const angle = Math.random() * Math.PI * 2;
@@ -1060,7 +1077,7 @@ function explodeRocket(x, y, color) {
       p.friction = 0.95;
       p.fade = Math.random() * 0.016 + 0.009;
       p.twinkle = true;
-      p.useTrail = (Math.random() < 0.4); // 40% chance of trail lines
+      p.useTrail = isMobile ? (Math.random() < 0.2) : (Math.random() < 0.4); // 20% vs 40% chance of trail lines
       particles.push(p);
     }
   }
@@ -1071,10 +1088,12 @@ function triggerFirecracker(side) {
   const x = side === 'left' ? 30 : width - 30;
   const y = 30;
   const colors = ['#ffd700', '#ff4766', '#00f2fe', '#ff8fa3', '#8b5cf6'];
+  const isMobile = width < 600;
+  const numParticles = isMobile ? 18 : 40;
   
   playExplosionSound();
   
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < numParticles; i++) {
     const color = colors[Math.floor(Math.random() * colors.length)];
     const p = new Particle(x, y, color);
     p.size = Math.random() * 3 + 1.5;
@@ -1086,6 +1105,8 @@ function triggerFirecracker(side) {
 function runInitialFireworksShow() {
   const colors = ['#ffd700', '#ff4766', '#00f2fe', '#ff8fa3', '#8b5cf6', '#10b981', '#ff5722'];
   let rocketCount = 0;
+  const isMobile = width < 600;
+  const maxRockets = isMobile ? 5 : 9;
   
   const launchNextRocket = () => {
     if (!state.isBlown) return;
@@ -1107,8 +1128,8 @@ function runInitialFireworksShow() {
     rockets.push(new Rocket(startX, startY, targetX, targetY, color));
     rocketCount++;
     
-    // Launch up to 8 rockets over the duration
-    if (rocketCount < 9 && state.isBlown) {
+    // Launch rockets over the duration
+    if (rocketCount < maxRockets && state.isBlown) {
       const nextDelay = 350 + Math.random() * 350;
       const timeoutId = setTimeout(launchNextRocket, nextDelay);
       activeTimeouts.push(timeoutId);
@@ -1137,16 +1158,18 @@ function launchHomingSparks() {
   titleScreen.style.opacity = '';
   
   const colors = ['#ffd700', '#ff4766', '#00f2fe', '#ff8fa3', '#8b5cf6'];
+  const isMobile = width < 600;
+  const numSparks = isMobile ? 10 : 18;
   
   // Launch sparks from Left Corner
-  for (let i = 0; i < 18; i++) {
+  for (let i = 0; i < numSparks; i++) {
     const color = colors[Math.floor(Math.random() * colors.length)];
     const delay = i * 4;
     homingSparks.push(new HomingSpark(20, 20, targetX, targetY, delay, color));
   }
   
   // Launch sparks from Right Corner
-  for (let i = 0; i < 18; i++) {
+  for (let i = 0; i < numSparks; i++) {
     const color = colors[Math.floor(Math.random() * colors.length)];
     const delay = i * 4;
     homingSparks.push(new HomingSpark(width - 20, 20, targetX, targetY, delay, color));
@@ -1221,8 +1244,10 @@ function revealCelebration() {
   introScreen.classList.remove('active');
   celebrationScreen.classList.add('active');
   
-  // Spawn continuous confetti falling
-  for (let i = 0; i < 80; i++) {
+  // Spawn continuous confetti falling (fewer on mobile)
+  const isMobile = width < 600;
+  const numConfetti = isMobile ? 35 : 80;
+  for (let i = 0; i < numConfetti; i++) {
     const c = new Confetti();
     c.y = Math.random() * height;
     confetti.push(c);
@@ -1256,8 +1281,10 @@ function updateAndRender() {
   }
 
   // 1. Particles (Firecracker explosions)
-  if (particles.length > 600) {
-    particles.splice(0, particles.length - 600);
+  const isMobile = width < 600;
+  const maxParticles = isMobile ? 220 : 600;
+  if (particles.length > maxParticles) {
+    particles.splice(0, particles.length - maxParticles);
   }
   
   for (let i = particles.length - 1; i >= 0; i--) {
@@ -1287,7 +1314,8 @@ function updateAndRender() {
     hs.draw();
     
     if (landed) {
-      for (let j = 0; j < 5; j++) {
+      const numLandingSparks = isMobile ? 3 : 5;
+      for (let j = 0; j < numLandingSparks; j++) {
         const landingSpark = new Particle(hs.targetX, hs.targetY, hs.color);
         landingSpark.size = Math.random() * 2 + 1;
         landingSpark.vy -= 1.8;
@@ -1360,36 +1388,49 @@ blowBtn.addEventListener('click', () => {
 
 
 // Interactive firecracker burst on screen clicks/taps
-window.addEventListener('click', (e) => {
-  // Only trigger if the candle is blown
-  if (!state.isBlown) return;
-  // If clicked a button, ignore
-  if (e.target.closest('button') || e.target.closest('.btn')) return;
-  
-  const targetX = e.clientX;
-  const targetY = e.clientY;
-  
-  // 1. Play explosion sound
+function triggerTapBurst(clientX, clientY) {
   playExplosionSound();
-  
-  // 2. Spawn firecracker burst particles directly at tap position
   const colors = ['#ffd700', '#ff4766', '#00f2fe', '#ff8fa3', '#8b5cf6', '#10b981', '#ff5722'];
   const finalColor = colors[Math.floor(Math.random() * colors.length)];
+  const isMobile = width < 600;
   
-  const numParticles = 28 + Math.floor(Math.random() * 12); // 28-40 particles
+  const numParticles = isMobile
+    ? 14 + Math.floor(Math.random() * 6)   // 14-20 particles
+    : 28 + Math.floor(Math.random() * 12);  // 28-40 particles
+    
   for (let i = 0; i < numParticles; i++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = Math.random() * 5.5 + 1.8;
     
-    const p = new Particle(targetX, targetY, finalColor);
+    const p = new Particle(clientX, clientY, finalColor);
     p.vx = Math.cos(angle) * speed;
     p.vy = Math.sin(angle) * speed;
     p.size = Math.random() * 2.6 + 1.4;
     p.fade = Math.random() * 0.024 + 0.016;
-    p.useTrail = (Math.random() < 0.38); // 38% chance of trail lines
-    p.childExplosion = (Math.random() < 0.5); // 50% chance of secondary crackles
+    p.useTrail = isMobile ? (Math.random() < 0.2) : (Math.random() < 0.38); // fewer trails on mobile
+    p.childExplosion = isMobile ? (Math.random() < 0.25) : (Math.random() < 0.5); // fewer child explosions on mobile
     particles.push(p);
   }
+}
+
+let lastTouchTime = 0;
+window.addEventListener('touchstart', (e) => {
+  if (!state.isBlown) return;
+  if (e.target.closest('button') || e.target.closest('.btn')) return;
+  
+  lastTouchTime = Date.now();
+  const touch = e.touches[0];
+  triggerTapBurst(touch.clientX, touch.clientY);
+}, { passive: true });
+
+window.addEventListener('click', (e) => {
+  if (!state.isBlown) return;
+  if (e.target.closest('button') || e.target.closest('.btn')) return;
+  
+  // Prevent double triggering from touchstart + click emulation
+  if (Date.now() - lastTouchTime < 600) return;
+  
+  triggerTapBurst(e.clientX, e.clientY);
 });
 
 // Replay / Reset Action
@@ -1424,9 +1465,11 @@ replayBtn.addEventListener('click', () => {
 });
 
 // Initialize background floating cakes and chocolates
-for (let i = 0; i < 15; i++) {
+const isMobile = width < 600;
+const bgItemCount = isMobile ? 7 : 15;
+for (let i = 0; i < bgItemCount; i++) {
   // Distribute Y values across the screen height initially
-  const yOffset = -height * (i / 15);
+  const yOffset = -height * (i / bgItemCount);
   backgroundItems.push(new BackgroundFloatingItem(yOffset));
 }
 
