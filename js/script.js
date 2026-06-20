@@ -65,8 +65,12 @@ const MELODY = [
 
 // Resize Handler
 window.addEventListener('resize', () => {
-  width = canvas.width = window.innerWidth;
-  height = canvas.height = window.innerHeight;
+  const newWidth = window.innerWidth;
+  const newHeight = window.innerHeight;
+  if (newWidth !== width || newHeight !== height) {
+    width = canvas.width = newWidth;
+    height = canvas.height = newHeight;
+  }
 });
 
 // Initialize Audio Context on user tap
@@ -384,14 +388,11 @@ class Particle {
   
   draw() {
     if (this.alpha <= 0) return;
-    ctx.save();
     
     let currentAlpha = this.alpha;
     if (this.twinkle && Math.random() < 0.35) {
       currentAlpha = Math.max(0.08, this.alpha * 0.25);
     }
-    
-    ctx.globalAlpha = currentAlpha;
     
     if (this.useTrail && this.history.length >= 2) {
       // Draw a wider outer faint trail (glow)
@@ -413,7 +414,6 @@ class Particle {
         ctx.lineTo(this.history[i].x, this.history[i].y);
       }
       ctx.lineWidth = this.size * 1.2;
-      ctx.lineCap = 'round';
       ctx.strokeStyle = '#ffffff';
       ctx.globalAlpha = currentAlpha;
       ctx.stroke();
@@ -432,7 +432,6 @@ class Particle {
       ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
       ctx.fill();
     }
-    ctx.restore();
   }
 }
 
@@ -496,7 +495,6 @@ class HomingSpark {
   draw() {
     if (this.delay > 0 || this.history.length < 2) return;
     
-    ctx.save();
     // Glow trail
     ctx.beginPath();
     ctx.moveTo(this.history[0].x, this.history[0].y);
@@ -514,8 +512,6 @@ class HomingSpark {
     ctx.strokeStyle = '#ffffff';
     ctx.globalAlpha = 1.0;
     ctx.stroke();
-    
-    ctx.restore();
   }
 }
 
@@ -581,33 +577,23 @@ function drawRoundRect(ctx, x, y, width, height, radius) {
   ctx.closePath();
 }
 
-// 4-pointed star drawing helper for sparkles (optimized: no expensive shadowBlur)
+// 4-pointed star drawing helper for sparkles (mathematically optimized, zero canvas transforms/state pushes)
 function drawStarSparkle(ctx, cx, cy, spikes, outerRadius, innerRadius, color, alpha, angle) {
-  ctx.save();
   ctx.globalAlpha = alpha;
   ctx.fillStyle = color;
-  ctx.translate(cx, cy);
-  ctx.rotate(angle);
   ctx.beginPath();
-  let rot = Math.PI / 2 * 3;
-  let step = Math.PI / spikes;
+  let rot = Math.PI / 2 * 3 + angle;
+  const step = Math.PI / spikes;
 
-  ctx.moveTo(0, -outerRadius);
+  ctx.moveTo(cx + Math.cos(rot) * outerRadius, cy + Math.sin(rot) * outerRadius);
   for (let i = 0; i < spikes; i++) {
-    let x = Math.cos(rot) * outerRadius;
-    let y = Math.sin(rot) * outerRadius;
-    ctx.lineTo(x, y);
     rot += step;
-
-    x = Math.cos(rot) * innerRadius;
-    y = Math.sin(rot) * innerRadius;
-    ctx.lineTo(x, y);
+    ctx.lineTo(cx + Math.cos(rot) * innerRadius, cy + Math.sin(rot) * innerRadius);
     rot += step;
+    ctx.lineTo(cx + Math.cos(rot) * outerRadius, cy + Math.sin(rot) * outerRadius);
   }
-  ctx.lineTo(0, -outerRadius);
   ctx.closePath();
   ctx.fill();
-  ctx.restore();
 }
 
 class WishText {
@@ -687,6 +673,11 @@ class WishText {
     // Local sparkles array
     this.sparkles = [];
     this.dead = false;
+
+    // Cached Gradients (lazy initialized in draw to avoid needing ctx here)
+    this.bgGrad = null;
+    this.borderGrad = null;
+    this.textGrad = null;
   }
 
   update(allWishes) {
@@ -819,20 +810,24 @@ class WishText {
 
     drawRoundRect(ctx, rx, ry, w, h, radius);
     
-    // Glassmorphic dark pastel background fill
-    const bgGrad = ctx.createLinearGradient(rx, ry, rx, ry + h);
-    bgGrad.addColorStop(0, 'rgba(15, 12, 30, 0.72)');
-    bgGrad.addColorStop(1, 'rgba(8, 6, 18, 0.88)');
-    ctx.fillStyle = bgGrad;
+    // Glassmorphic dark pastel background fill (cached)
+    if (!this.bgGrad) {
+      this.bgGrad = ctx.createLinearGradient(rx, ry, rx, ry + h);
+      this.bgGrad.addColorStop(0, 'rgba(15, 12, 30, 0.72)');
+      this.bgGrad.addColorStop(1, 'rgba(8, 6, 18, 0.88)');
+    }
+    ctx.fillStyle = this.bgGrad;
     ctx.fill();
 
-    // Double-gradient glow border
-    const borderGrad = ctx.createLinearGradient(rx, ry, rx + w, ry + h);
-    borderGrad.addColorStop(0, this.colorFrom);
-    borderGrad.addColorStop(0.3, 'rgba(255, 255, 255, 0.35)');
-    borderGrad.addColorStop(0.7, 'rgba(255, 255, 255, 0.15)');
-    borderGrad.addColorStop(1, this.colorTo);
-    ctx.strokeStyle = borderGrad;
+    // Double-gradient glow border (cached)
+    if (!this.borderGrad) {
+      this.borderGrad = ctx.createLinearGradient(rx, ry, rx + w, ry + h);
+      this.borderGrad.addColorStop(0, this.colorFrom);
+      this.borderGrad.addColorStop(0.3, 'rgba(255, 255, 255, 0.35)');
+      this.borderGrad.addColorStop(0.7, 'rgba(255, 255, 255, 0.15)');
+      this.borderGrad.addColorStop(1, this.colorTo);
+    }
+    ctx.strokeStyle = this.borderGrad;
     ctx.lineWidth = 1.8;
     ctx.stroke();
 
@@ -840,19 +835,24 @@ class WishText {
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
 
-    // Glow halo + Light Text Gradient pass (single optimized draw)
-    ctx.shadowColor = this.colorFrom;
-    ctx.shadowBlur  = 5; // soft glowing theme outline
-    ctx.font        = `500 ${this.fontSize}px 'Dancing Script', 'Outfit', 'Noto Sans', sans-serif`;
+    // Glow halo (crisp outlined text) + Light Text Gradient pass
+    ctx.font = `500 ${this.fontSize}px 'Dancing Script', 'Outfit', 'Noto Sans', sans-serif`;
 
-    const textGrad = ctx.createLinearGradient(-w / 3, 0, w / 3, 0);
-    textGrad.addColorStop(0,   '#f8fafc'); // light pastel slate
-    textGrad.addColorStop(0.5, '#ffffff'); // bright clean white
-    textGrad.addColorStop(1,   '#f1f5f9'); // light slate
-    
-    ctx.fillStyle  = textGrad;
+    if (!this.textGrad) {
+      this.textGrad = ctx.createLinearGradient(-w / 3, 0, w / 3, 0);
+      this.textGrad.addColorStop(0,   '#f8fafc'); // light pastel slate
+      this.textGrad.addColorStop(0.5, '#ffffff'); // bright clean white
+      this.textGrad.addColorStop(1,   '#f1f5f9'); // light slate
+    }
+
+    ctx.strokeStyle = this.colorFrom;
+    ctx.lineWidth = 4;
+    ctx.lineJoin = 'round';
+    ctx.miterLimit = 2;
+    ctx.strokeText(this.text, 0, -5);
+
+    ctx.fillStyle = this.textGrad;
     ctx.fillText(this.text, 0, -5);
-    ctx.shadowBlur = 0; // reset shadow immediately
 
     // Language sub-label (optimized: no shadow blur)
     ctx.globalAlpha = this.alpha * 0.65;
@@ -967,7 +967,6 @@ class Rocket {
   draw() {
     if (this.history.length < 2) return;
     
-    ctx.save();
     // Glow trail
     ctx.beginPath();
     ctx.moveTo(this.history[0].x, this.history[0].y);
@@ -985,8 +984,6 @@ class Rocket {
     ctx.strokeStyle = '#ffffff';
     ctx.globalAlpha = 1.0;
     ctx.stroke();
-    
-    ctx.restore();
   }
 }
 
@@ -1259,8 +1256,8 @@ function updateAndRender() {
   }
 
   // 1. Particles (Firecracker explosions)
-  if (particles.length > 250) {
-    particles.splice(0, particles.length - 250);
+  if (particles.length > 600) {
+    particles.splice(0, particles.length - 600);
   }
   
   for (let i = particles.length - 1; i >= 0; i--) {

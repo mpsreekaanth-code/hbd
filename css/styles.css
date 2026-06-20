@@ -18,10 +18,9 @@
 
   /*
     Cake sizing root — ALL cake measurements are in multiples of --cu.
-    Change this one value and the entire cake scales uniformly.
-    We set it via media queries below.
+    Fluidly calculates unit based on container size:
   */
-  --cu: 1px;   /* base unit — overridden per breakpoint */
+  --cu: calc(min(82vw, 300px) / 270);
 }
 
 /* ── Reset ── */
@@ -47,17 +46,30 @@ body {
 .bg-glow {
   position: fixed;
   inset: 0;
-  background:
-    radial-gradient(circle at 15% 20%, rgba(255,71,102,.22) 0%, transparent 45%),
-    radial-gradient(circle at 85% 80%, rgba(0,242,254,.22) 0%, transparent 45%),
-    radial-gradient(circle at 50% 15%, rgba(255,215,0,.18) 0%, transparent 45%),
-    radial-gradient(circle at 20% 85%, rgba(139,92,246,.22) 0%, transparent 45%),
-    #070611;
   z-index: -2;
   pointer-events: none;
-  animation: cycleBgGlow 20s linear infinite;
+  overflow: hidden;
+  background: #070611;
 }
-@keyframes cycleBgGlow { to { filter: hue-rotate(360deg); } }
+.bg-glow::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255,71,102,.22) 0%, transparent 40%),
+    radial-gradient(circle at 70% 70%, rgba(0,242,254,.22) 0%, transparent 40%),
+    radial-gradient(circle at 70% 30%, rgba(255,215,0,.18) 0%, transparent 40%),
+    radial-gradient(circle at 30% 70%, rgba(139,92,246,.22) 0%, transparent 40%);
+  animation: spinBgGlow 25s linear infinite;
+  will-change: transform;
+}
+@keyframes spinBgGlow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
 
 /* ── Canvas ── */
 #celebration-canvas {
@@ -311,8 +323,8 @@ body {
   line-height: 1;
 }
 @keyframes starPulse {
-  0%   { filter: brightness(1);   transform: translate(-50%,-50%) scale(1);    }
-  100% { filter: brightness(1.8); transform: translate(-50%,-50%) scale(1.15); }
+  0%   { transform: translate(-50%,-50%) scale(1); opacity: 0.8; }
+  100% { transform: translate(-50%,-50%) scale(1.15); opacity: 1; }
 }
 
 /* ── Middle Layer Decorations ── */
@@ -675,26 +687,18 @@ body {
 
 /* Large / desktop */
 @media (min-width: 600px) {
-  :root { --cu: 1px; }
   .title           { font-size: 3.8rem; }
   .title .highlight{ font-size: 5rem; }
 }
 
-/* Tablet */
-@media (max-width: 599px) {
-  :root { --cu: .88px; }
-}
-
 /* Standard mobile (360–480px wide) */
 @media (max-width: 480px) {
-  :root { --cu: .76px; }
   .app-container { padding: 8px 10px 16px; }
   .celebration-popup { width: 95%; border-radius: 18px; }
 }
 
 /* Small mobile (< 360px) */
 @media (max-width: 359px) {
-  :root { --cu: .64px; }
   .celebration-popup { padding: 16px 12px; }
 }
 
@@ -724,6 +728,11 @@ body {
   .character-wrapper.right-top   { right: 8px !important; top: 60px !important; }
   .character-wrapper.left-bottom { left: 8px !important;  bottom: 8px !important; }
   .character-wrapper.right-bottom{ right: 8px !important; bottom: 8px !important; }
+
+  /* Disable dynamic filter drop-shadow to eliminate repaint/compositor lag */
+  .doraemon-img {
+    filter: none !important;
+  }
 
   /* Simplified float for fixed characters */
   .screen.active .character-wrapper.left-top,
