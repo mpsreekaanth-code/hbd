@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Happy Birthday Cutie!</title>
+  
+  <!-- Premium Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@500;700&family=Outfit:wght@300;400;500;600;800&family=Noto+Sans:wght@400;700&display=swap" rel="stylesheet">
+  
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎂</text></svg>">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- Background Glow & Interactive Canvas -->
+  <div class="bg-glow"></div>
+  <canvas id="celebration-canvas"></canvas>
+
+  <!-- Sound Toggle -->
+  <button id="sound-toggle" class="sound-toggle" aria-label="Toggle Sound">
+    <span class="icon">🔊</span> <span class="text">Music On</span>
+  </button>
+
+  <main class="app-container">
+    
+    <!-- Phase 1: Blow Candle Screen -->
+    <section id="intro-screen" class="screen active">
+      <div class="wishes-intro">Make a Wish...</div>
+      
+      <!-- The Birthday Cake Container -->
+      <div class="cake-container">
+        <div class="cake">
+
+          <!-- ── CANDLES (5 candles spread across the top layer) ── -->
+          <div class="candles-row">
+            <div class="candle candle-1" data-candle>
+              <div class="flame"></div>
+              <div class="wick"></div>
+            </div>
+            <div class="candle candle-2" data-candle>
+              <div class="flame"></div>
+              <div class="wick"></div>
+            </div>
+            <div class="candle candle-3" data-candle>
+              <div class="flame"></div>
+              <div class="wick"></div>
+            </div>
+            <div class="candle candle-4" data-candle>
+              <div class="flame"></div>
+              <div class="wick"></div>
+            </div>
+            <div class="candle candle-5" data-candle>
+              <div class="flame"></div>
+              <div class="wick"></div>
+            </div>
+          </div>
+
+          <!-- ── TOP LAYER (Strawberry) ── -->
+          <div class="layer layer-top">
+            <div class="frosting frosting-top"></div>
+            <!-- Drip drops -->
+            <div class="cream-drops drops-top">
+              <span></span><span></span><span></span><span></span>
+            </div>
+            <!-- Sprinkle decorations -->
+            <div class="sprinkles sprinkles-top">
+              <span class="sp sp-gold"></span>
+              <span class="sp sp-white"></span>
+              <span class="sp sp-pink"></span>
+              <span class="sp sp-blue"></span>
+              <span class="sp sp-gold"></span>
+            </div>
+            <!-- Star decoration -->
+            <div class="cake-star">★</div>
+          </div>
+
+          <!-- ── MIDDLE LAYER (Vanilla Cream) ── -->
+          <div class="layer layer-middle">
+            <div class="frosting frosting-middle"></div>
+            <div class="cream-drops drops-middle">
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <!-- Ribbon band + hearts -->
+            <div class="ribbon-band">
+              <span class="ribbon-heart">♥</span>
+              <span class="ribbon-heart">♥</span>
+              <span class="ribbon-heart">♥</span>
+              <span class="ribbon-heart">♥</span>
+              <span class="ribbon-heart">♥</span>
+            </div>
+            <!-- Dot decorations -->
+            <div class="dot-row">
+              <span class="dot dot-gold"></span>
+              <span class="dot dot-blue"></span>
+              <span class="dot dot-pink"></span>
+              <span class="dot dot-gold"></span>
+              <span class="dot dot-blue"></span>
+            </div>
+          </div>
+
+          <!-- ── BOTTOM LAYER (Chocolate) ── -->
+          <div class="layer layer-bottom">
+            <div class="frosting frosting-bottom"></div>
+            <div class="cream-drops drops-bottom">
+              <span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <!-- Chocolate swirl decorations -->
+            <div class="choc-dots">
+              <span class="cdot"></span>
+              <span class="cdot cdot-lg"></span>
+              <span class="cdot"></span>
+              <span class="cdot cdot-lg"></span>
+              <span class="cdot"></span>
+              <span class="cdot cdot-lg"></span>
+            </div>
+          </div>
+
+          <!-- Cherry on top -->
+          <div class="cherry" id="cake-cherry">
+            <div class="stem"></div>
+          </div>
+
+          <!-- Cake Plate -->
+          <div class="plate">
+            <div class="plate-shine"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="action-area">
+        <button id="blow-btn" class="btn btn-primary pulse-glow">
+          <span class="btn-icon">🕯️</span> Tap to Blow the Candles
+        </button>
+      </div>
+    </section>
+
+    <!-- Phase 2: Celebration Screen -->
+    <section id="celebration-screen" class="screen">
+      
+      <!-- Left Side Characters -->
+      <div class="character-wrapper left-top" id="char-left-top">
+        <img src="images/doraemon_copter.png" alt="Doraemon Copter" class="doraemon-img">
+      </div>
+      <div class="character-wrapper left-bottom" id="char-left-bottom">
+        <img src="images/stranger_eleven.png" alt="Eleven" class="doraemon-img">
+      </div>
+
+      <!-- Glassmorphic Popup Card -->
+      <div class="celebration-popup" id="celebration-popup">
+        <div class="celebration-content">
+          <div class="sparkle-anchor" id="sparkle-anchor"></div>
+          
+          <h1 id="birthday-title" class="title">
+            Happy Birthday <br><span class="highlight">Cutie</span>
+          </h1>
+          
+          <div class="confetti-message">May all your dreams come true! ✨</div>
+
+          <button id="replay-btn" class="btn btn-secondary">
+            <span class="btn-icon">🔄</span> Celebrate Again
+          </button>
+        </div>
+      </div>
+
+      <!-- Right Side Characters -->
+      <div class="character-wrapper right-top" id="char-right-top">
+        <img src="images/stranger_dustin.png" alt="Dustin" class="doraemon-img">
+      </div>
+      <div class="character-wrapper right-bottom" id="char-right-bottom">
+        <img src="images/doraemon_happy.png" alt="Doraemon Happy" class="doraemon-img">
+      </div>
+
+    </section>
+    
+  </main>
+
+  <script src="js/script.js"></script>
+</body>
+</html>

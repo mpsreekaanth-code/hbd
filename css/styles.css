@@ -1,0 +1,756 @@
+/* ============================================================
+   Premium Birthday Celebration — Mobile-First Responsive CSS
+   ============================================================ */
+
+/* ── Design Tokens ── */
+:root {
+  --bg-primary:    #080711;
+  --text-main:     #f8fafc;
+  --text-muted:    #94a3b8;
+  --accent-gold:   #ffd700;
+  --accent-pink:   #ff4766;
+  --accent-rose:   #ff8fa3;
+  --accent-blue:   #00f2fe;
+  --accent-purple: #8b5cf6;
+
+  --font-sans:    'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-cursive: 'Dancing Script', cursive;
+
+  /*
+    Cake sizing root — ALL cake measurements are in multiples of --cu.
+    Change this one value and the entire cake scales uniformly.
+    We set it via media queries below.
+  */
+  --cu: 1px;   /* base unit — overridden per breakpoint */
+}
+
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overscroll-behavior: none;
+}
+
+/* ── Atmospheric Glow ── */
+.bg-glow {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(255,71,102,.22) 0%, transparent 45%),
+    radial-gradient(circle at 85% 80%, rgba(0,242,254,.22) 0%, transparent 45%),
+    radial-gradient(circle at 50% 15%, rgba(255,215,0,.18) 0%, transparent 45%),
+    radial-gradient(circle at 20% 85%, rgba(139,92,246,.22) 0%, transparent 45%),
+    #070611;
+  z-index: -2;
+  pointer-events: none;
+  animation: cycleBgGlow 20s linear infinite;
+}
+@keyframes cycleBgGlow { to { filter: hue-rotate(360deg); } }
+
+/* ── Canvas ── */
+#celebration-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* ── Sound Toggle ── */
+.sound-toggle {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.15);
+  color: var(--text-main);
+  padding: 8px 14px;
+  border-radius: 50px;
+  font-size: .85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 50;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: background .3s;
+  white-space: nowrap;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.sound-toggle:active { background: rgba(255,255,255,.18); }
+.sound-toggle.muted .icon { filter: grayscale(1); opacity: .5; }
+.sound-toggle.muted .text { text-decoration: line-through; color: var(--text-muted); }
+
+/* ── App Container ── */
+.app-container {
+  width: 100%;
+  max-width: 560px;
+  padding: 12px 16px 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 5;
+  min-height: 100dvh;
+}
+
+/* ── Screen States ── */
+.screen {
+  display: none;
+  opacity: 0;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0;
+  transition: opacity .8s ease;
+}
+.screen.active {
+  display: flex;
+  opacity: 1;
+}
+
+/* Blow animation */
+#intro-screen .wishes-intro,
+#intro-screen .cake-container,
+#intro-screen .action-area {
+  transition: opacity .8s cubic-bezier(.4,0,.2,1), transform .8s cubic-bezier(.4,0,.2,1);
+}
+#intro-screen.blow-triggered .wishes-intro,
+#intro-screen.blow-triggered .cake-container,
+#intro-screen.blow-triggered .action-area {
+  opacity: 0;
+  transform: translateY(-25px);
+  pointer-events: none;
+}
+
+/* ============================================================
+   CAKE SCREEN
+   ============================================================ */
+
+.wishes-intro {
+  font-size: clamp(1.1rem, 5vw, 1.8rem);
+  font-weight: 300;
+  letter-spacing: 2px;
+  color: var(--accent-rose);
+  margin-bottom: clamp(.8rem, 3vw, 1.8rem);
+  text-shadow: 0 0 15px rgba(255,143,163,.3);
+  animation: floatText 3s ease-in-out infinite alternate;
+}
+
+/* ── Cake Container ──
+   Uses padding-bottom trick so height is always proportional to width.
+   The cake itself is positioned inside absolutely. */
+.cake-container {
+  position: relative;
+  /* Width drives everything — capped at 300px on large screens */
+  width: min(82vw, 300px);
+  /* Explicit height to fit all layers + candles */
+  height: min(72vw, 270px);
+  margin-bottom: clamp(1rem, 4vw, 2.5rem);
+  flex-shrink: 0;
+}
+
+/*
+  .cake is positioned at bottom-centre of .cake-container.
+  All child positions are relative to .cake.
+  --cu is set per breakpoint to scale everything together.
+*/
+.cake {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  /* Width = 200cu, height = 145cu — used as layout reference */
+  width:  calc(200 * var(--cu));
+  height: calc(145 * var(--cu));
+}
+
+/* ── Plate ── */
+.plate {
+  position: absolute;
+  bottom: calc(-15 * var(--cu));
+  left:   calc(-35 * var(--cu));
+  width:  calc(270 * var(--cu));
+  height: calc(26  * var(--cu));
+  background: linear-gradient(135deg, rgba(255,255,255,.28), rgba(255,255,255,.06));
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 50%;
+  box-shadow: 0 18px 40px rgba(0,0,0,.65);
+  z-index: 1;
+  overflow: hidden;
+}
+.plate-shine {
+  position: absolute;
+  top: 3px; left: 20%;
+  width: 40%; height: 5px;
+  background: rgba(255,255,255,.35);
+  border-radius: 50%;
+  filter: blur(2px);
+}
+
+/* ── Layer base ── */
+.layer {
+  position: absolute;
+  box-shadow: inset 0 3px 5px rgba(255,255,255,.18), 0 5px 10px rgba(0,0,0,.45);
+}
+
+/* Bottom — Chocolate */
+.layer-bottom {
+  bottom: 0; left: 0;
+  width:  calc(200 * var(--cu));
+  height: calc(54  * var(--cu));
+  background: linear-gradient(to bottom, #4a2308, #1c0b00);
+  border-radius: 50% / calc(16 * var(--cu));
+  z-index: 2;
+}
+
+/* Middle — Vanilla Cream */
+.layer-middle {
+  bottom: calc(32 * var(--cu));
+  left:   calc(20 * var(--cu));
+  width:  calc(160 * var(--cu));
+  height: calc(46  * var(--cu));
+  background: linear-gradient(to bottom, #fff8f0, #ffd6e0);
+  border-radius: 50% / calc(12 * var(--cu));
+  z-index: 4;
+}
+
+/* Top — Strawberry */
+.layer-top {
+  bottom: calc(60 * var(--cu));
+  left:   calc(40 * var(--cu));
+  width:  calc(120 * var(--cu));
+  height: calc(42  * var(--cu));
+  background: linear-gradient(160deg, #ff6b8a 0%, #e0103a 100%);
+  border-radius: 50% / calc(11 * var(--cu));
+  z-index: 6;
+}
+
+/* ── Frostings ── */
+.frosting {
+  position: absolute;
+  top: calc(3 * var(--cu)); left: 0;
+  width: 100%; height: calc(13 * var(--cu));
+  z-index: 5;
+}
+.frosting-top    { background: #ff1a40; border-radius: 50% / calc(6 * var(--cu)); }
+.frosting-middle { background: #fffdf0; border-radius: 50% / calc(5 * var(--cu)); }
+.frosting-bottom { background: #2b0f00; border-radius: 50% / calc(4 * var(--cu)); }
+
+/* ── Cream Drips ── */
+.cream-drops {
+  position: absolute;
+  top: calc(9 * var(--cu)); left: 5%;
+  width: 90%; height: calc(8 * var(--cu));
+  display: flex;
+  justify-content: space-around;
+  z-index: 6;
+}
+.cream-drops span {
+  width: calc(8 * var(--cu));
+  height: calc(16 * var(--cu));
+  border-radius: 0 0 calc(5 * var(--cu)) calc(5 * var(--cu));
+  box-shadow: 0 1px 3px rgba(0,0,0,.25);
+}
+.drops-top    span { background: #ff1a40; }
+.drops-middle span { background: #fffdf0; }
+.drops-bottom span { background: #2b0f00; }
+
+/* ── Top Layer Decorations ── */
+.sprinkles {
+  position: absolute;
+  bottom: calc(5 * var(--cu)); left: 10%;
+  width: 80%;
+  display: flex;
+  justify-content: space-evenly;
+  align-items: flex-end;
+  z-index: 8;
+}
+.sp {
+  width: calc(4 * var(--cu));
+  height: calc(10 * var(--cu));
+  border-radius: calc(2 * var(--cu));
+  transform: rotate(var(--r, 20deg));
+  box-shadow: 0 0 4px rgba(255,255,255,.4);
+}
+.sp:nth-child(odd)  { --r: 20deg; }
+.sp:nth-child(even) { --r: -20deg; }
+.sp-gold  { background: var(--accent-gold); }
+.sp-white { background: #fff; }
+.sp-pink  { background: var(--accent-rose); }
+.sp-blue  { background: var(--accent-blue); }
+
+.cake-star {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: calc(16 * var(--cu));
+  color: var(--accent-gold);
+  text-shadow: 0 0 8px rgba(255,215,0,.9), 0 0 20px rgba(255,215,0,.4);
+  z-index: 9;
+  animation: starPulse 2s ease-in-out infinite alternate;
+  pointer-events: none;
+  user-select: none;
+  line-height: 1;
+}
+@keyframes starPulse {
+  0%   { filter: brightness(1);   transform: translate(-50%,-50%) scale(1);    }
+  100% { filter: brightness(1.8); transform: translate(-50%,-50%) scale(1.15); }
+}
+
+/* ── Middle Layer Decorations ── */
+.ribbon-band {
+  position: absolute;
+  bottom: calc(8 * var(--cu)); left: 6%;
+  width: 88%;
+  height: calc(10 * var(--cu));
+  background: linear-gradient(to right,
+    rgba(255,71,102,.55) 0%, rgba(255,143,163,.8) 50%, rgba(255,71,102,.55) 100%);
+  border-radius: calc(4 * var(--cu));
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 7;
+  box-shadow: 0 0 8px rgba(255,71,102,.4);
+}
+.ribbon-heart {
+  font-size: calc(8 * var(--cu));
+  color: #fff;
+  line-height: 1;
+  text-shadow: 0 0 4px rgba(255,255,255,.7);
+  animation: heartBeat 1.2s ease-in-out infinite alternate;
+}
+.ribbon-heart:nth-child(even) { animation-delay: .4s; }
+.ribbon-heart:nth-child(3)    { animation-delay: .8s; }
+@keyframes heartBeat {
+  0%   { transform: scale(1); }
+  100% { transform: scale(1.3); }
+}
+
+.dot-row {
+  position: absolute;
+  top: calc(16 * var(--cu)); left: 8%;
+  width: 84%;
+  display: flex;
+  justify-content: space-evenly;
+  z-index: 7;
+}
+.dot {
+  width:  calc(7 * var(--cu));
+  height: calc(7 * var(--cu));
+  border-radius: 50%;
+  box-shadow: 0 0 6px currentColor;
+}
+.dot-gold { background: var(--accent-gold); color: var(--accent-gold); }
+.dot-blue { background: var(--accent-blue); color: var(--accent-blue); }
+.dot-pink { background: var(--accent-rose); color: var(--accent-rose); }
+
+/* ── Bottom Layer Decorations ── */
+.choc-dots {
+  position: absolute;
+  bottom: calc(8 * var(--cu)); left: 4%;
+  width: 92%;
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  z-index: 4;
+}
+.cdot {
+  width:  calc(6  * var(--cu));
+  height: calc(6  * var(--cu));
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #7c4a1e, #3d1c02);
+  box-shadow: 0 0 4px rgba(0,0,0,.6);
+}
+.cdot-lg {
+  width:  calc(10 * var(--cu));
+  height: calc(10 * var(--cu));
+  background: radial-gradient(circle at 35% 35%, #8d5524, #4a2308);
+}
+
+/* ── Cherry ── */
+.cherry {
+  position: absolute;
+  bottom: calc(90 * var(--cu));
+  left:   calc(120 * var(--cu)); /* 60% of 200cu */
+  width:  calc(17 * var(--cu));
+  height: calc(17 * var(--cu));
+  background: radial-gradient(circle at 35% 35%, #ff3b5c, #940016);
+  border-radius: 50%;
+  z-index: 12;
+  box-shadow: 0 2px 5px rgba(0,0,0,.5), 0 0 12px rgba(255,59,92,.5);
+}
+.cherry .stem {
+  position: absolute;
+  top:  calc(-11 * var(--cu));
+  left: calc(8   * var(--cu));
+  width:  calc(12 * var(--cu));
+  height: calc(12 * var(--cu));
+  border: 1.5px solid #639d37;
+  border-color: #639d37 transparent transparent transparent;
+  border-radius: 50% 0 0 0;
+  transform: rotate(35deg);
+}
+
+/* ============================================================
+   CANDLES — 5 in a row on top of the top layer
+   ============================================================ */
+
+.candles-row {
+  position: absolute;
+  /* Sits on top of layer-top: bottom = layer-top bottom + layer-top height */
+  bottom: calc(102 * var(--cu));  /* 60cu + 42cu = 102cu */
+  left:   calc(40  * var(--cu));  /* same as layer-top */
+  width:  calc(120 * var(--cu));  /* same as layer-top */
+  display: flex;
+  justify-content: space-evenly;
+  align-items: flex-end;
+  z-index: 11;
+  pointer-events: none;
+}
+
+.candle {
+  position: relative;
+  width: calc(9 * var(--cu));
+  border-radius: calc(4 * var(--cu)) calc(4 * var(--cu)) calc(2 * var(--cu)) calc(2 * var(--cu));
+  box-shadow: 0 2px 6px rgba(0,0,0,.4);
+  flex-shrink: 0;
+}
+
+.candle-1 { height: calc(44 * var(--cu)); background: repeating-linear-gradient(45deg, #fff 0px, #fff 3px, #ff4766 3px, #ff4766 6px); }
+.candle-2 { height: calc(38 * var(--cu)); background: repeating-linear-gradient(45deg, #fff 0px, #fff 3px, #8b5cf6 3px, #8b5cf6 6px); }
+.candle-3 { height: calc(50 * var(--cu)); background: repeating-linear-gradient(45deg, #fff 0px, #fff 3px, #00f2fe 3px, #00f2fe 6px); }
+.candle-4 { height: calc(36 * var(--cu)); background: repeating-linear-gradient(45deg, #fff 0px, #fff 3px, #ffd700 3px, #ffd700 6px); }
+.candle-5 { height: calc(42 * var(--cu)); background: repeating-linear-gradient(45deg, #fff 0px, #fff 3px, #10b981 3px, #10b981 6px); }
+
+/* Wick */
+.wick {
+  position: absolute;
+  top:  calc(-7  * var(--cu));
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1.5px;
+  height: calc(7 * var(--cu));
+  background: #2a2a2a;
+}
+
+/* Flame */
+.flame {
+  position: absolute;
+  top:  calc(-26 * var(--cu));
+  left: 50%;
+  transform: translateX(-50%) scale(1);
+  width:  calc(13 * var(--cu));
+  height: calc(20 * var(--cu));
+  background: radial-gradient(ellipse at bottom, #ffee55 30%, #ff5722 90%);
+  border-radius: 50% 50% 35% 35% / 60% 60% 40% 40%;
+  box-shadow: 0 0 8px rgba(255,238,85,.8), 0 0 18px rgba(255,87,34,.6), 0 0 32px rgba(255,87,34,.4);
+  animation: flicker .6s infinite alternate ease-in-out;
+  transform-origin: center bottom;
+  transition: transform .4s cubic-bezier(.175,.885,.32,1.275), opacity .4s ease;
+}
+.candle-1 .flame { animation-duration: .55s; }
+.candle-2 .flame { animation-duration: .70s; animation-delay: .15s; }
+.candle-3 .flame { animation-duration: .50s; animation-delay: .05s; }
+.candle-4 .flame { animation-duration: .65s; animation-delay: .25s; }
+.candle-5 .flame { animation-duration: .60s; animation-delay: .10s; }
+
+.candle.extinguished .flame {
+  transform: translateX(-50%) scale(0);
+  opacity: 0;
+}
+
+
+
+/* ── Keyframes ── */
+@keyframes flicker {
+  0% {
+    transform: translateX(-50%) rotate(-2deg) scale(.92);
+    box-shadow: 0 0 7px rgba(255,238,85,.8), 0 0 14px rgba(255,87,34,.5), 0 0 26px rgba(255,87,34,.3);
+  }
+  100% {
+    transform: translateX(-50%) rotate(2deg) scale(1.06);
+    box-shadow: 0 0 11px rgba(255,238,85,.9), 0 0 22px rgba(255,87,34,.7), 0 0 38px rgba(255,87,34,.5);
+  }
+}
+@keyframes floatText {
+  0%   { transform: translateY(0); }
+  100% { transform: translateY(-8px); }
+}
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+
+.action-area { margin-top: clamp(.6rem, 2.5vw, 1rem); }
+
+.btn {
+  font-family: var(--font-sans);
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  font-size: clamp(.95rem, 3.5vw, 1.1rem);
+  font-weight: 600;
+  padding: clamp(12px, 3.5vw, 16px) clamp(22px, 7vw, 36px);
+  outline: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all .4s cubic-bezier(.16,1,.3,1);
+  box-shadow: 0 4px 20px rgba(0,0,0,.3);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent-pink) 0%, #d92b4c 100%);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.1);
+}
+.btn-primary:active { transform: translateY(-1px) scale(.99); }
+
+.pulse-glow { animation: pulseButton 2s infinite; }
+@keyframes pulseButton {
+  0%   { box-shadow: 0 0 0 0 rgba(255,71,102,.6); }
+  70%  { box-shadow: 0 0 0 18px rgba(255,71,102,0); }
+  100% { box-shadow: 0 0 0 0 rgba(255,71,102,0); }
+}
+
+/* ============================================================
+   CELEBRATION SCREEN
+   ============================================================ */
+
+/* The celebration section has characters positioned relative to it on desktop.
+   On mobile (≤768px) characters switch to fixed corners. */
+#celebration-screen {
+  position: relative;
+}
+
+.celebration-popup {
+  background: rgba(12,10,26,.75);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 24px;
+  padding: clamp(20px, 6vw, 38px) clamp(16px, 7vw, 42px);
+  width: 92%;
+  max-width: 440px;
+  margin: 0 auto;
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  box-shadow:
+    0 30px 60px rgba(0,0,0,.65),
+    0 0 50px rgba(139,92,246,.18),
+    inset 0 1px 0 rgba(255,255,255,.15);
+  transform: scale(.6) translateY(30px);
+  opacity: 0;
+  transition: transform 1.1s cubic-bezier(.34,1.56,.64,1), opacity 1.1s ease;
+  position: relative;
+  z-index: 5;
+}
+.screen.active .celebration-popup {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
+
+.celebration-content { position: relative; width: 100%; }
+
+.sparkle-anchor {
+  position: absolute;
+  top: 30%; left: 50%;
+  transform: translate(-50%,-50%);
+  width: 10px; height: 10px;
+  pointer-events: none;
+}
+
+.title {
+  font-family: var(--font-sans);
+  font-size: clamp(1.8rem, 7vw, 3.2rem);
+  font-weight: 800;
+  line-height: 1.15;
+  color: #fff;
+  margin-bottom: clamp(.7rem, 2.5vw, 1.2rem);
+  text-shadow: 0 10px 30px rgba(0,0,0,.5);
+}
+.title .highlight {
+  font-family: var(--font-cursive);
+  font-size: clamp(2.6rem, 10vw, 5rem);
+  background: linear-gradient(to right, var(--accent-gold), var(--accent-rose), var(--accent-blue), var(--accent-gold));
+  background-size: 300% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: inline-block;
+  filter: drop-shadow(0 0 20px rgba(255,215,0,.3));
+  animation: shineGradient 6s linear infinite, wobbleText 4s ease-in-out infinite alternate;
+}
+@keyframes shineGradient {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+@keyframes wobbleText {
+  0%   { transform: rotate(-2deg); }
+  100% { transform: rotate(2deg); }
+}
+
+.confetti-message {
+  font-size: clamp(.85rem, 3.5vw, 1.15rem);
+  color: var(--text-muted);
+  font-weight: 300;
+  letter-spacing: 1px;
+  margin-bottom: clamp(1.2rem, 5vw, 2.5rem);
+  animation: breathe 3s ease-in-out infinite alternate;
+}
+@keyframes breathe {
+  0%   { opacity: .6; transform: scale(.98); }
+  100% { opacity: 1;  transform: scale(1.02); }
+}
+
+.btn-secondary {
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.15);
+  color: var(--text-main);
+  font-size: clamp(.88rem, 3vw, 1rem);
+  padding: clamp(10px, 3vw, 14px) clamp(18px, 6vw, 28px);
+}
+.btn-secondary:active {
+  background: rgba(255,255,255,.15);
+}
+
+/* ── Characters ── */
+.character-wrapper {
+  position: absolute;
+  width: 110px;
+  height: 110px;
+  z-index: 6;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1.2s cubic-bezier(.16,1,.3,1), transform 1.2s cubic-bezier(.16,1,.3,1);
+}
+
+/* Desktop: flanking the popup */
+.character-wrapper.left-top    { left: -130px; top: 5%;    transform: scale(.5); }
+.character-wrapper.left-bottom { left: -130px; bottom: 5%; transform: scale(.5); }
+.character-wrapper.right-top   { right: -130px; top: 5%;   transform: scale(.5); }
+.character-wrapper.right-bottom{ right: -130px; bottom: 5%;transform: scale(.5); }
+
+.screen.active .character-wrapper { opacity: 1; }
+.screen.active .character-wrapper.left-top    { transform: scale(1); animation: floatLT 4.0s ease-in-out infinite alternate; transition-delay: .4s; }
+.screen.active .character-wrapper.left-bottom { transform: scale(1); animation: floatLB 4.5s ease-in-out infinite alternate; transition-delay: .6s; }
+.screen.active .character-wrapper.right-top   { transform: scale(1); animation: floatRT 4.2s ease-in-out infinite alternate; transition-delay: .8s; }
+.screen.active .character-wrapper.right-bottom{ transform: scale(1); animation: floatRB 4.8s ease-in-out infinite alternate; transition-delay:1.0s; }
+
+.doraemon-img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 8px 16px rgba(0,242,254,.4)) drop-shadow(0 4px 8px rgba(255,71,102,.2));
+}
+
+@keyframes floatLT { 0% { transform:translateY(0) rotate(-4deg); }  100% { transform:translateY(-10px) rotate(4deg); } }
+@keyframes floatLB { 0% { transform:translateY(0) rotate(4deg);  }  100% { transform:translateY(10px) rotate(-4deg); } }
+@keyframes floatRT { 0% { transform:translateY(0) rotate(4deg);  }  100% { transform:translateY(-10px) rotate(-4deg); } }
+@keyframes floatRB { 0% { transform:translateY(0) rotate(-4deg); }  100% { transform:translateY(10px) rotate(4deg); } }
+
+/* ============================================================
+   CAKE SCALE BREAKPOINTS  (--cu = "cake unit")
+   All cake element sizes = N * --cu, so changing --cu
+   uniformly resizes the entire cake with no layout breakage.
+   ============================================================ */
+
+/* Large / desktop */
+@media (min-width: 600px) {
+  :root { --cu: 1px; }
+  .title           { font-size: 3.8rem; }
+  .title .highlight{ font-size: 5rem; }
+}
+
+/* Tablet */
+@media (max-width: 599px) {
+  :root { --cu: .88px; }
+}
+
+/* Standard mobile (360–480px wide) */
+@media (max-width: 480px) {
+  :root { --cu: .76px; }
+  .app-container { padding: 8px 10px 16px; }
+  .celebration-popup { width: 95%; border-radius: 18px; }
+}
+
+/* Small mobile (< 360px) */
+@media (max-width: 359px) {
+  :root { --cu: .64px; }
+  .celebration-popup { padding: 16px 12px; }
+}
+
+/* ============================================================
+   MOBILE CHARACTER BEHAVIOUR  (≤ 768px)
+   Characters switch to fixed corners so they don't crowd the popup
+   ============================================================ */
+@media (max-width: 768px) {
+  /* Hide desktop flanking characters entirely */
+  .character-wrapper.left-top,
+  .character-wrapper.left-bottom,
+  .character-wrapper.right-top,
+  .character-wrapper.right-bottom {
+    position: fixed !important;
+    width: 60px;
+    height: 60px;
+    /* Cancel inline desktop offsets */
+    left: auto !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: auto !important;
+    transform: scale(.7);
+  }
+
+  /* Re-assign corners */
+  .character-wrapper.left-top    { left: 8px !important;  top: 60px !important; }
+  .character-wrapper.right-top   { right: 8px !important; top: 60px !important; }
+  .character-wrapper.left-bottom { left: 8px !important;  bottom: 8px !important; }
+  .character-wrapper.right-bottom{ right: 8px !important; bottom: 8px !important; }
+
+  /* Simplified float for fixed characters */
+  .screen.active .character-wrapper.left-top,
+  .screen.active .character-wrapper.left-bottom,
+  .screen.active .character-wrapper.right-top,
+  .screen.active .character-wrapper.right-bottom {
+    animation: floatMobile 3.6s ease-in-out infinite alternate !important;
+    transition-delay: 0s !important;
+  }
+  .screen.active .character-wrapper.right-top   { animation-delay: .3s !important; }
+  .screen.active .character-wrapper.left-bottom { animation-delay: .6s !important; }
+  .screen.active .character-wrapper.right-bottom{ animation-delay: .9s !important; }
+
+  /* Sound toggle: icon only */
+  .sound-toggle .text { display: none; }
+  .sound-toggle { padding: 8px 11px; }
+}
+
+@keyframes floatMobile {
+  0%   { transform: scale(.85) translateY(0)   rotate(-5deg); }
+  100% { transform: scale(.85) translateY(-7px) rotate(5deg); }
+}
+
+/* Very short screens (landscape phone) — shrink cake more */
+@media (max-height: 560px) and (orientation: landscape) {
+  :root { --cu: .58px; }
+  .app-container { min-height: unset; padding-top: 50px; }
+  .wishes-intro  { margin-bottom: .5rem; }
+  .cake-container{ margin-bottom: .8rem; }
+}
